@@ -1453,6 +1453,13 @@ EOF
     fi
   fi
 
+  # 如果运行在 WSL 环境，内核模块通常不可用，强制使用 wireguard-go
+  if is_wsl; then
+    warning " Detected WSL environment, forcing wireguard-go fallback. "
+    WIREGUARD_GO_ENABLE=1
+    KERNEL_ENABLE=0
+  fi
+
   # 判断机器原生状态类型
   IPV4=0; IPV6=0
   # 优先通过 ip route 获取 src（速度快），若为空则回退到 ip addr / hostname -I（WSL 环境常用）
