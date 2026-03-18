@@ -1455,8 +1455,17 @@ EOF
 
   # 判断机器原生状态类型
   IPV4=0; IPV6=0
-  LAN4=$(ip route get 192.168.193.10 2>/dev/null | awk '{for (i=0; i<NF; i++) if ($i=="src") {print $(i+1)}}')
-  LAN6=$(ip route get 2606:4700:d0::a29f:c001 2>/dev/null | awk '{for (i=0; i<NF; i++) if ($i=="src") {print $(i+1)}}')
+  # 优先通过 ip route 获取 src（速度快），若为空则回退到 ip addr / hostname -I（WSL 环境常用）
+  LAN4=$(ip route get 192.168.193.10 2>/dev/null | awk '{for (i=0; i<NF; i++) if ($i=="src") {print $(i+1); exit}}')
+  if [[ -z "$LAN4" ]]; then
+    LAN4=$(ip -4 addr show scope global 2>/dev/null | awk '/inet /{print $2; exit}' | cut -d/ -f1)
+    [[ -z "$LAN4" ]] && LAN4=$(hostname -I 2>/dev/null | awk '{print $1}')
+  fi
+
+  LAN6=$(ip route get 2606:4700:d0::a29f:c001 2>/dev/null | awk '{for (i=0; i<NF; i++) if ($i=="src") {print $(i+1); exit}}')
+  if [[ -z "$LAN6" ]]; then
+    LAN6=$(ip -6 addr show scope global 2>/dev/null | awk '/inet6 / && $2 !~ /^fe80/{print $2; exit}' | cut -d/ -f1)
+  fi
 
   # 先查是否非局，优先 warp IP，再原生 IP
   if [[ $(ip link show | awk -F': ' '{print $2}') =~ warp ]]; then
